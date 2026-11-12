@@ -64,10 +64,22 @@ jobs:
               exit 1
           fi
 
-      - name: Collect
+      - name: Apply Quality and Gemini Filters
         run: |
           sed -i 's/exclude=\[到过\]期/exclude=(?i)港|HK|HongKong|China|CN|[到过]期/g' subscribe/subconverter.py
-          python -u subscribe/collect.py --all --overwrite --delay 1500 -n 64 --url https://gemini.google.com
+          python -c '
+          with open("subscribe/clash.py", "r", encoding="utf-8") as f: c = f.read()
+          c = c.replace("alive = False\n                break", "alive = False\n                break\n            proxy[\"delay\"] = max(proxy.get(\"delay\", 0), data.get(\"delay\", 0))")
+          with open("subscribe/clash.py", "w", encoding="utf-8") as f: f.write(c)
+          '
+          python -c '
+          with open("subscribe/collect.py", "r", encoding="utf-8") as f: s = f.read()
+          s = s.replace("nodes = [proxies[i] for i in range(len(proxies)) if masks[i]]", "nodes = [proxies[i] for i in range(len(proxies)) if masks[i]]\n        nodes.sort(key=lambda x: x.get(\"delay\", 9999))\n        nodes = nodes[:50]\n        logger.info(f\"Top 50 lowest latency nodes selected! Total: {len(nodes)}\")")
+          with open("subscribe/collect.py", "w", encoding="utf-8") as f: f.write(s)
+          '
+
+      - name: Collect
+        run: python -u subscribe/collect.py --all --overwrite --delay 1000 -n 64 --url https://gemini.google.com
 
       - name: Timestamp
         run: date
