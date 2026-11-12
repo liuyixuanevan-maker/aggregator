@@ -64,22 +64,18 @@ jobs:
               exit 1
           fi
 
-      - name: Apply Quality and Gemini Filters
+      - name: Pre-filter Japan and Singapore Nodes
         run: |
-          sed -i 's/exclude=\[到过\]期/exclude=(?i)港|HK|HongKong|China|CN|[到过]期/g' subscribe/subconverter.py
-          python -c '
-          with open("subscribe/clash.py", "r", encoding="utf-8") as f: c = f.read()
-          c = c.replace("alive = False\n                break", "alive = False\n                break\n            proxy[\"delay\"] = max(proxy.get(\"delay\", 0), data.get(\"delay\", 0))")
-          with open("subscribe/clash.py", "w", encoding="utf-8") as f: f.write(c)
-          '
           python -c '
           with open("subscribe/collect.py", "r", encoding="utf-8") as f: s = f.read()
-          s = s.replace("nodes = [proxies[i] for i in range(len(proxies)) if masks[i]]", "nodes = [proxies[i] for i in range(len(proxies)) if masks[i]]\n        nodes.sort(key=lambda x: x.get(\"delay\", 9999))\n        nodes = nodes[:50]\n        logger.info(f\"Top 50 lowest latency nodes selected! Total: {len(nodes)}\")")
+          old = "proxies = list(itertools.chain.from_iterable([x[1] for x in results if x]))"
+          new = "proxies = list(itertools.chain.from_iterable([x[1] for x in results if x]))\n    import re\n    jp_sg = re.compile(r\"(?i)日|日本|JP|Japan|Tokyo|Osaka|新|新加坡|SG|Singapore\")\n    proxies = [p for p in proxies if isinstance(p, dict) and jp_sg.search(p.get(\"name\", \"\"))]\n    logger.info(f\"Pre-filtered Japan/Singapore proxies count: {len(proxies)}\")"
+          s = s.replace(old, new)
           with open("subscribe/collect.py", "w", encoding="utf-8") as f: f.write(s)
           '
 
       - name: Refresh
-        run: python -u subscribe/collect.py --all --refresh --overwrite --delay 1000 -n 64 --url https://gemini.google.com
+        run: python -u subscribe/collect.py --all --refresh --overwrite -c -p 15 --delay 1000 -n 64 --url https://gemini.google.com
 
       - name: Timestamp
         run: date
