@@ -56,7 +56,7 @@ jobs:
       - name: Optimize Concurrency, Timeout and Region Filter
         run: |
           sed -i 's/cpu_count = multiprocessing.cpu_count()/cpu_count = 32/g' subscribe/utils.py
-          sed -i 's/with multiprocessing.Pool(num) as pool:/from multiprocessing.dummy import Pool as ThreadPool; pool = ThreadPool(num)/g' subscribe/utils.py
+          sed -i 's/multiprocessing\.Pool/multiprocessing.dummy.Pool/g' subscribe/utils.py
           sed -i 's/timeout=120/timeout=20/g' subscribe/airport.py
           sed -i 's/account, 120,/account, 20,/g' subscribe/airport.py
           python -c '
