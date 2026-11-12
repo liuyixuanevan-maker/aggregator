@@ -65,7 +65,7 @@ jobs:
           fi
 
       - name: Collect
-        run: python -u subscribe/collect.py --all --overwrite --skip
+        run: python -u subscribe/collect.py --all --overwrite --delay 1500 -n 64 --url https://gemini.google.com
 
       - name: Timestamp
         run: date
