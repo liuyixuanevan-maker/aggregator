@@ -64,12 +64,10 @@ jobs:
               exit 1
           fi
 
-      - name: Exclude Gemini Restricted Regions
-        run: |
-          python -c 'path = "subscribe/subconverter.py"; s = open(path, "r", encoding="utf-8").read().replace("lines.append(\"exclude=[到过]期", "lines.append(\"exclude=(?i)港|HK|HongKong|China|CN|[到过]期"); open(path, "w", encoding="utf-8").write(s)'
-
       - name: Refresh
-        run: python -u subscribe/collect.py --all --refresh --overwrite --delay 1500 -n 64 --url https://gemini.google.com
+        run: |
+          sed -i 's/exclude=\[到过\]期/exclude=(?i)港|HK|HongKong|China|CN|[到过]期/g' subscribe/subconverter.py
+          python -u subscribe/collect.py --all --refresh --overwrite --delay 1500 -n 64 --url https://gemini.google.com
 
       - name: Timestamp
         run: date
