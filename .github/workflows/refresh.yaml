@@ -64,14 +64,39 @@ jobs:
               exit 1
           fi
 
-      - name: Pre-filter Japan and Singapore Nodes
+      - name: Optimize Concurrency, Timeout and Region Filter
         run: |
           python -c '
+          # 1. 解锁 32 并发线程池（打破 2 核限制）
+          with open("subscribe/utils.py", "r", encoding="utf-8") as f: u = f.read()
+          old_u = """    cpu_count = multiprocessing.cpu_count()
+    num = len(tasks) if len(tasks) <= cpu_count else cpu_count
+
+    starttime, results = time.time(), []
+
+    # TODO: handle KeyboardInterrupt and exit program immediately
+    with multiprocessing.Pool(num) as pool:"""
+          new_u = """    from multiprocessing.dummy import Pool as ThreadPool
+    num = min(len(tasks), 32)
+    starttime, results = time.time(), []
+    with ThreadPool(num) as pool:"""
+          u = u.replace(old_u, new_u)
+          with open("subscribe/utils.py", "w", encoding="utf-8") as f: f.write(u)
+
+          # 2. 超时强压至 20 秒
+          with open("subscribe/airport.py", "r", encoding="utf-8") as f: a = f.read()
+          a = a.replace("timeout=120", "timeout=20").replace("account, 120,", "account, 20,")
+          with open("subscribe/airport.py", "w", encoding="utf-8") as f: f.write(a)
+
+          # 3. 内存前置过滤日本和新加坡节点
           with open("subscribe/collect.py", "r", encoding="utf-8") as f: s = f.read()
-          old = "proxies = list(itertools.chain.from_iterable([x[1] for x in results if x]))"
-          new = "proxies = list(itertools.chain.from_iterable([x[1] for x in results if x]))\n    import re\n    jp_sg = re.compile(r\"(?i)日|日本|JP|Japan|Tokyo|Osaka|新|新加坡|SG|Singapore\")\n    proxies = [p for p in proxies if isinstance(p, dict) and jp_sg.search(p.get(\"name\", \"\"))]\n    logger.info(f\"Pre-filtered Japan/Singapore proxies count: {len(proxies)}\")"
-          s = s.replace(old, new)
+          old_c = "proxies = list(itertools.chain.from_iterable([x[1] for x in results if x]))"
+          new_c = "proxies = list(itertools.chain.from_iterable([x[1] for x in results if x]))\n    import re
+    jp_sg = re.compile(r"(?i)日|日本|JP|Japan|Tokyo|Osaka|新|新加坡|SG|Singapore")
+    proxies = [p for p in proxies if isinstance(p, dict) and jp_sg.search(p.get("name", ""))]\n    logger.info(f"Pre-filtered Japan/Singapore proxies count: {len(proxies)}")"
+          s = s.replace(old_c, new_c)
           with open("subscribe/collect.py", "w", encoding="utf-8") as f: f.write(s)
+          print("Optimizations applied successfully!")
           '
 
       - name: Refresh
